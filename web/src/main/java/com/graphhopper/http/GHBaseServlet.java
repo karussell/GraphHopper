@@ -85,6 +85,22 @@ public class GHBaseServlet extends HttpServlet
         res.sendError(SC_BAD_REQUEST, errorMessage);
     }
 
+    protected void writeJsonError( HttpServletResponse res, int code, JSONObject json )
+    {
+        try
+        {
+            // no type parameter check here as jsonp does not work if an error
+            // also no debug parameter yet
+            res.setContentType("application/json");
+            res.setCharacterEncoding("UTF-8");
+            res.setStatus(code);
+            res.getWriter().append(json.toString(2));
+        } catch (IOException ex)
+        {
+            logger.error("Cannot write error " + ex.getMessage());
+        }
+    }
+
     protected String getParam( HttpServletRequest req, String string, String _default )
     {
         String[] l = req.getParameterMap().get(string);
