@@ -233,7 +233,7 @@ public class InstructionList implements Iterable<Instruction>
         return str.substring(0, str.length() - 2) + ":" + str.substring(str.length() - 2);
     }
 
-    private void createRteptBlock( StringBuilder output, Instruction instruction, Instruction nextI )
+    public void createRteptBlock( StringBuilder output, Instruction instruction, Instruction nextI )
     {
         output.append("\n<rtept lat=\"").append(Helper.round6(instruction.getFirstLat())).
                 append("\" lon=\"").append(Helper.round6(instruction.getFirstLon())).append("\">");
