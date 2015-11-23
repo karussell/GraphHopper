@@ -30,10 +30,35 @@ import java.util.List;
  */
 public class PathMerger
 {
+    private static final DouglasPeucker DP = new DouglasPeucker();
     private boolean enableInstructions = true;
     private boolean simplifyResponse = true;
-    private DouglasPeucker douglasPeucker;
+    private DouglasPeucker douglasPeucker = DP;
     private boolean calcPoints = true;
+
+    public PathMerger setCalcPoints( boolean calcPoints )
+    {
+        this.calcPoints = calcPoints;
+        return this;
+    }
+
+    public PathMerger setDouglasPeucker( DouglasPeucker douglasPeucker )
+    {
+        this.douglasPeucker = douglasPeucker;
+        return this;
+    }
+
+    public PathMerger setSimplifyResponse( boolean simplifyRes )
+    {
+        this.simplifyResponse = simplifyRes;
+        return this;
+    }
+
+    public PathMerger setEnableInstructions( boolean enableInstructions )
+    {
+        this.enableInstructions = enableInstructions;
+        return this;
+    }
 
     public void doWork( GHResponse rsp, List<Path> paths, Translation tr )
     {
@@ -123,29 +148,5 @@ public class PathMerger
                 setRouteWeight(fullWeight).
                 setDistance(fullDistance).
                 setMillis(fullMillis);
-    }
-
-    public PathMerger setCalcPoints( boolean calcPoints )
-    {
-        this.calcPoints = calcPoints;
-        return this;
-    }
-
-    public PathMerger setDouglasPeucker( DouglasPeucker douglasPeucker )
-    {
-        this.douglasPeucker = douglasPeucker;
-        return this;
-    }
-
-    public PathMerger setSimplifyResponse( boolean simplifyRes )
-    {
-        this.simplifyResponse = simplifyRes;
-        return this;
-    }
-
-    public PathMerger setEnableInstructions( boolean enableInstructions )
-    {
-        this.enableInstructions = enableInstructions;
-        return this;
     }
 }
