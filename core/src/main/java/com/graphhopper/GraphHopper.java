@@ -976,6 +976,7 @@ public class GraphHopper implements GraphHopperAPI
         double rtMaxWeightFactor = request.getHints().getDouble("round_trip.max_weight_factor", 2);
         double rtPenaltyFactor = request.getHints().getDouble("round_trip.penalty_factor", 1.5);
         double rtApproxTime = request.getHints().getDouble("round_trip.approx_time", 3600);
+        boolean allowLonger = request.getHints().getBool("round_trip.allow_longer", false);
         int rtMax = request.getHints().getInt("round_trip.max", 0);
 
         double weightLimit = request.getHints().getDouble("defaultWeightLimit", defaultWeightLimit);
@@ -996,7 +997,7 @@ public class GraphHopper implements GraphHopperAPI
             QueryResult fromQResult = qResults.get(0);
             double maxDistance = rtApproxTime / 3.6 * 50;
             AlternativeRoute altDijkstra = new AlternativeRoute(queryGraph, algoOpts.getFlagEncoder(), algoOpts.getWeighting(), algoOpts.getTraversalMode());
-            paths = altDijkstra.calcRoundTrips(fromQResult.getClosestNode(), maxDistance, rtMaxWeightFactor, rtPenaltyFactor);
+            paths = altDijkstra.calcRoundTrips(fromQResult.getClosestNode(), maxDistance, rtMaxWeightFactor, rtPenaltyFactor, allowLonger);
 
         } else if (!chEnabled && altMax > 0)
         {

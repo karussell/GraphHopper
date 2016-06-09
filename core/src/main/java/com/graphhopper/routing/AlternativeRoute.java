@@ -79,7 +79,7 @@ public class AlternativeRoute
      * @return currently no path at all or two paths (one forward and one backward path)
      */
     public List<Path> calcRoundTrips( int from, double maxFullDistance, double maxWeightFactor,
-            final double penaltyFactor )
+            final double penaltyFactor, boolean allowLonger )
     {
         AltSingleDijkstra altDijkstra = new AltSingleDijkstra(graph, flagEncoder, weighting, traversalMode);
         altDijkstra.beforeRun(from);
@@ -145,6 +145,10 @@ public class AlternativeRoute
         } else
         {
             AlternativeInfo secondBest = null;
+
+            if (allowLonger)
+                Collections.reverse(infos);
+            
             for (AlternativeInfo i : infos)
             {
                 if (1 - i.getPlateauWeight() / i.getPath().getWeight() > 1e-8)
@@ -157,7 +161,8 @@ public class AlternativeRoute
                 throw new RuntimeException("no second best found. " + infos);
 
             EdgeEntry newTo = secondBest.getPlateauStart();
-            // find first sharing edge
+
+            // find first sharing edge of (alternative) backward path and best forward path
             while (newTo.parent != null)
             {
                 if (forwardEdgeSet.contains(newTo.parent.edge))
@@ -167,7 +172,7 @@ public class AlternativeRoute
 
             if (newTo.parent != null)
             {
-                // in case edge was found in forwardEdgeSet we calculate the first sharing end
+                // in the case an edge was found in forwardEdgeSet we calculate the first sharing end
                 int tKey = traversalMode.createTraversalId(newTo.adjNode, newTo.parent.adjNode, newTo.edge, false);
 
                 // do new extract
