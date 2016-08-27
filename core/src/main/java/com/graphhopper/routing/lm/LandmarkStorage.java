@@ -41,7 +41,7 @@ public class LandmarkStorage implements Storable<LandmarkStorage>
     private final int TO_OFFSET;
     private final DataAccess da;
     private final int landmarkIDs[];
-    private final double factor = 1;
+    private double factor = 1;
     private final Graph graph;
     private final FlagEncoder encoder;
     private final Weighting weighting;
@@ -105,7 +105,7 @@ public class LandmarkStorage implements Storable<LandmarkStorage>
         explorer.initFrom(0, 0);
         explorer.runAlgo(true);
 
-        int logOffset = Math.max(1, landmarkIDs.length / 4);
+        int logOffset = Math.max(1, landmarkIDs.length / 2);
         for (int lmIdx = 0; lmIdx < landmarkIDs.length; lmIdx++)
         {
             landmarkIDs[lmIdx] = explorer.getLastNode();
@@ -117,15 +117,17 @@ public class LandmarkStorage implements Storable<LandmarkStorage>
             explorer.runAlgo(true);
 
             if (lmIdx % logOffset == 0)
-                LOGGER.info("Finding landmarks. Progress " + (int) (100.0 * lmIdx / landmarkIDs.length) + "%");
+                LOGGER.info("Finding landmarks [" + weighting + "]. "
+                        + "Progress " + (int) (100.0 * lmIdx / landmarkIDs.length) + "%");
         }
 
         LOGGER.info("Finding landmarks. Progress 100% for subnetwork of size " + explorer.getVisitedNodes() + " TODO: for all subnetworks");
-        // TODO introduce a factor to store weight without loosing too much precision AND making it compatible with weighting.calcWeight
-        // TODO make this bounding box dependent?
-        double distance = 4000 * 1000;
+        // introduce a factor to store weight without loosing too much precision 
+        // AND making it compatible with weighting.calcWeight
+        double distance = 6000 * 1000;
         double weightMax = weighting.getMinWeight(distance);
-        // 'to' and 'from' fit into an int => 16 bit => 65536 => factor = (1 << 16) / weightMax;
+        // 'to' and 'from' fit into 32 bit => 16 bit for each of them => 65536
+        factor = weightMax / (1 << 16);
 
         // 2. calculate weights for all landmarks -> 'from' and 'to' weight
         for (int lmIdx = 0; lmIdx < landmarkIDs.length; lmIdx++)
@@ -134,14 +136,15 @@ public class LandmarkStorage implements Storable<LandmarkStorage>
             explorer = new Explorer(graph, this, encoder, weighting, traversalMode);
             explorer.initFrom(lm, 0);
             explorer.runAlgo(true);
-            explorer.initFroms(lmIdx, LM_ROW_LENGTH, FROM_OFFSET, factor);
+            explorer.initFroms(lmIdx, LM_ROW_LENGTH, FROM_OFFSET);
 
             explorer = new Explorer(graph, this, encoder, weighting, traversalMode);
             explorer.initTo(lm, 0);
             explorer.runAlgo(false);
-            explorer.initTos(lmIdx, LM_ROW_LENGTH, TO_OFFSET, factor);
+            explorer.initTos(lmIdx, LM_ROW_LENGTH, TO_OFFSET);
             if (lmIdx % logOffset == 0)
-                LOGGER.info("Creating landmarks weights. Progress " + (int) (100.0 * lmIdx / landmarkIDs.length) + "%");
+                LOGGER.info("Creating landmarks weights [" + weighting + "]. "
+                        + "Progress " + (int) (100.0 * lmIdx / landmarkIDs.length) + "%");
         }
 
         this.da.ensureCapacity(maxBytes + landmarkIDs.length * 4);
@@ -212,6 +215,7 @@ public class LandmarkStorage implements Storable<LandmarkStorage>
 
     final void setWeight( long pointer, double val )
     {
+        val = val / factor;
         if (val > Integer.MAX_VALUE)
             da.setShort(pointer, (short) INFINITY);
         else
@@ -389,27 +393,27 @@ public class LandmarkStorage implements Storable<LandmarkStorage>
             }
         }
 
-        public void initFroms( final int lmIdx, final long rowSize, final int offset, final double factor )
+        public void initFroms( final int lmIdx, final long rowSize, final int offset )
         {
             bestWeightMapFrom.forEachEntry(new TIntObjectProcedure<SPTEntry>()
             {
                 @Override
                 public boolean execute( int nodeId, SPTEntry b )
                 {
-                    lms.setWeight(nodeId * rowSize + lmIdx * 4 + offset, b.weight / factor);
+                    lms.setWeight(nodeId * rowSize + lmIdx * 4 + offset, b.weight);
                     return true;
                 }
             });
         }
 
-        public void initTos( final int lmIdx, final long rowSize, final int offset, final double factor )
+        public void initTos( final int lmIdx, final long rowSize, final int offset )
         {
             bestWeightMapTo.forEachEntry(new TIntObjectProcedure<SPTEntry>()
             {
                 @Override
                 public boolean execute( int nodeId, SPTEntry b )
                 {
-                    lms.setWeight(nodeId * rowSize + lmIdx * 4 + offset, b.weight / factor);
+                    lms.setWeight(nodeId * rowSize + lmIdx * 4 + offset, b.weight);
                     return true;
                 }
             });

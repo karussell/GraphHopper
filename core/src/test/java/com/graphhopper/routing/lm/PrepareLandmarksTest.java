@@ -97,15 +97,15 @@ public class PrepareLandmarksTest
         assertEquals("[224, 1, 210, 14]", Arrays.toString(store.getLandmarks()));
 
         assertEquals(0, store.getFromWeight(0, 224));
-        assertEquals(4670/*8*/, store.getFromWeight(0, 47));
-        assertEquals(3639/*5*/, store.getFromWeight(0, 52));
+        assertEquals(1984, store.getFromWeight(0, 47));
+        assertEquals(1545, store.getFromWeight(0, 52));
 
-        assertEquals(5591/*5*/, store.getFromWeight(1, 224));
-        assertEquals(920/*6*/, store.getFromWeight(1, 47));
+        assertEquals(2375, store.getFromWeight(1, 224));
+        assertEquals(391, store.getFromWeight(1, 47));
 
         // grid is symmetric
-        assertEquals(5591/*5*/, store.getToWeight(1, 224));
-        assertEquals(920/*6*/, store.getToWeight(1, 47));
+        assertEquals(2375, store.getToWeight(1, 224));
+        assertEquals(391, store.getToWeight(1, 47));
 
         // prefer the landmarks before and behind the goal
         int activeLandmarkIndices[] = new int[activeLM];
@@ -129,14 +129,14 @@ public class PrepareLandmarksTest
         Path path = oneDirAlgoWithLandmarks.calcPath(41, 183);
 
         assertEquals(expectedPath.calcNodes(), path.calcNodes());
-        assertEquals(expectedAlgo.getVisitedNodes() - 150, oneDirAlgoWithLandmarks.getVisitedNodes());
+        assertEquals(expectedAlgo.getVisitedNodes() - 130, oneDirAlgoWithLandmarks.getVisitedNodes());
 
         // landmarks with bidir A*
         RoutingAlgorithm biDirAlgoWithLandmarks = prepare.getDecoratedAlgorithm(graph,
                 new AStarBidirection(graph, encoder, weighting, tm), opts);
         path = biDirAlgoWithLandmarks.calcPath(41, 183);
         assertEquals(expectedPath.calcNodes(), path.calcNodes());
-        assertEquals(expectedAlgo.getVisitedNodes() - 162, biDirAlgoWithLandmarks.getVisitedNodes());
+        assertEquals(expectedAlgo.getVisitedNodes() - 172, biDirAlgoWithLandmarks.getVisitedNodes());
 
         // landmarks with A* and a QueryGraph. We expect slightly less optimal as two more cycles needs to be traversed
         // due to the two more virtual nodes but this should not harm in practise
@@ -157,8 +157,8 @@ public class PrepareLandmarksTest
     @Test
     public void testStoreAndLoad()
     {
-        graph.edge(0, 1, 40, true);
-        graph.edge(1, 2, 40, true);
+        graph.edge(0, 1, 80, true);
+        graph.edge(1, 2, 80, true);
         String fileStr = "tmp-lm";
         Helper.removeDir(new File(fileStr));
 
