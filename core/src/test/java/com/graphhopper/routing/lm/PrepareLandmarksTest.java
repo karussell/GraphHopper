@@ -166,6 +166,7 @@ public class PrepareLandmarksTest
         Weighting weighting = new FastestWeighting(encoder);
         PrepareLandmarks plm = new PrepareLandmarks(dir, graph, encoder, weighting, tm, 2, 2);
         plm.doWork();
+        double expectedFactor = plm.getLandmarkStorage().getFactor();
 
         assertTrue(plm.getLandmarkStorage().isInitialized());
         assertEquals(Arrays.toString(new int[]
@@ -177,6 +178,7 @@ public class PrepareLandmarksTest
         dir = new RAMDirectory(fileStr, true);
         plm = new PrepareLandmarks(dir, graph, encoder, weighting, tm, 2, 2);
         assertTrue(plm.loadExisting());
+        assertEquals(expectedFactor, plm.getLandmarkStorage().getFactor(), 1e-6);
         assertEquals(Arrays.toString(new int[]
         {
             2, 0

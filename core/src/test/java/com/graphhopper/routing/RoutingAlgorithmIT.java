@@ -19,6 +19,7 @@ package com.graphhopper.routing;
 
 import com.graphhopper.reader.PrinctonReader;
 import com.graphhopper.routing.ch.PrepareContractionHierarchies;
+import com.graphhopper.routing.lm.PrepareLandmarks;
 import com.graphhopper.routing.util.*;
 import com.graphhopper.routing.util.EncodingManager;
 import com.graphhopper.routing.util.TestAlgoCollector.AlgoHelperEntry;
@@ -85,9 +86,9 @@ public class RoutingAlgorithmIT
     }
 
     public static List<AlgoHelperEntry> createAlgos( GraphHopperStorage ghStorage,
-                                              LocationIndex idx, final FlagEncoder encoder, boolean withCh,
-                                              final TraversalMode tMode, final Weighting weighting,
-                                              final EncodingManager manager )
+                                                     LocationIndex idx, final FlagEncoder encoder, boolean withPreparation,
+                                                     final TraversalMode tMode, final Weighting weighting,
+                                                     final EncodingManager manager )
     {
         List<AlgoHelperEntry> prepare = new ArrayList<AlgoHelperEntry>();
         prepare.add(new AlgoHelperEntry(ghStorage, ghStorage, new AlgorithmOptions(ASTAR, encoder, weighting, tMode), idx));
@@ -100,8 +101,21 @@ public class RoutingAlgorithmIT
         prepare.add(new AlgoHelperEntry(ghStorage, ghStorage, astarbiOpts, idx));
         prepare.add(new AlgoHelperEntry(ghStorage, ghStorage, dijkstrabiOpts, idx));
 
-        if (withCh)
+        if (withPreparation)
         {
+            Directory dir = new GHDirectory("", DAType.RAM_INT);
+            final PrepareLandmarks prepareLM = new PrepareLandmarks(dir, ghStorage, encoder, weighting, tMode, 16, 8);
+            prepareLM.doWork();
+
+            prepare.add(new AlgoHelperEntry(ghStorage, ghStorage, astarbiOpts, idx)
+            {
+                @Override
+                public RoutingAlgorithm createAlgo( Graph qGraph )
+                {
+                    return prepareLM.getDecoratedAlgorithm(qGraph, new AStarBidirection(qGraph, encoder, weighting, tMode), astarbiOpts);
+                }
+            });
+
             GraphHopperStorage storageCopy = new GraphBuilder(manager).
                     set3D(ghStorage.getNodeAccess().is3D()).setCHGraph(weighting).
                     create();
@@ -109,7 +123,7 @@ public class RoutingAlgorithmIT
             storageCopy.freeze();
             final CHGraph graphCH = storageCopy.getGraph(CHGraph.class, weighting);
             final PrepareContractionHierarchies prepareCH = new PrepareContractionHierarchies(
-                    new GHDirectory("", DAType.RAM_INT), storageCopy, graphCH, encoder, weighting, tMode);
+                    dir, storageCopy, graphCH, encoder, weighting, tMode);
             prepareCH.doWork();
             LocationIndex idxCH = new LocationIndexTree(storageCopy, new RAMDirectory()).prepareIndex();
             prepare.add(new AlgoHelperEntry(graphCH, storageCopy, dijkstrabiOpts, idxCH)

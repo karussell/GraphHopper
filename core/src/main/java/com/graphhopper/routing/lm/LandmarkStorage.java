@@ -42,6 +42,7 @@ public class LandmarkStorage implements Storable<LandmarkStorage>
     private final DataAccess da;
     private final int landmarkIDs[];
     private double factor = 1;
+    private final static double DOUBLE_MLTPL = 1.0e6;
     private final Graph graph;
     private final FlagEncoder encoder;
     private final Weighting weighting;
@@ -93,7 +94,8 @@ public class LandmarkStorage implements Storable<LandmarkStorage>
 
         for (long pointer = 0; pointer < maxBytes; pointer += 2)
         {
-            setWeight(pointer, Double.MAX_VALUE);
+            // setWeight(pointer, Double.MAX_VALUE);
+            da.setShort(pointer, (short) INFINITY);
         }
 
         // 1. pick landmarks via shortest weighting for a better geographical spreading
@@ -137,17 +139,30 @@ public class LandmarkStorage implements Storable<LandmarkStorage>
             explorer.initFrom(lm, 0);
             explorer.runAlgo(true);
             explorer.initFroms(lmIdx, LM_ROW_LENGTH, FROM_OFFSET);
+            // System.out.println(lmIdx + " -> " + explorer.getFromCount() + ", " + explorer.getToCount());
 
             explorer = new Explorer(graph, this, encoder, weighting, traversalMode);
             explorer.initTo(lm, 0);
             explorer.runAlgo(false);
             explorer.initTos(lmIdx, LM_ROW_LENGTH, TO_OFFSET);
+            // System.out.println(lmIdx + " -> " + explorer.getFromCount() + ", " + explorer.getToCount());
             if (lmIdx % logOffset == 0)
                 LOGGER.info("Creating landmarks weights [" + weighting + "]. "
                         + "Progress " + (int) (100.0 * lmIdx / landmarkIDs.length) + "%");
         }
 
-        this.da.ensureCapacity(maxBytes + landmarkIDs.length * 4);
+//        for (int nodeIdx = 0; nodeIdx < graph.getNodes(); nodeIdx++)
+//        {
+//            for (int lmIdx = 0; lmIdx < landmarkIDs.length; lmIdx++)
+//            {
+//                // just from weights
+//                long pointer = nodeIdx * LM_ROW_LENGTH + lmIdx * 4;
+//                if (((int) da.getShort(pointer) & 0x0000FFFF) == INFINITY)
+//                    System.out.println("lm " + lmIdx + "\t node " + nodeIdx);
+//            }
+//        }
+        // one int for factor        
+        this.da.ensureCapacity(maxBytes + landmarkIDs.length * 4 + 4);
         long bytePos = maxBytes;
         for (int lmId : landmarkIDs)
         {
@@ -155,6 +170,9 @@ public class LandmarkStorage implements Storable<LandmarkStorage>
             bytePos += 4L;
         }
 
+        if (factor * DOUBLE_MLTPL > Integer.MAX_VALUE)
+            throw new UnsupportedOperationException("factor cannot be bigger than Integer.MAX_VALUE " + factor * DOUBLE_MLTPL);
+        da.setInt(bytePos, (int) Math.round(factor * DOUBLE_MLTPL));
         initialized = true;
     }
 
@@ -213,13 +231,13 @@ public class LandmarkStorage implements Storable<LandmarkStorage>
     // We have large values that do not fit into a short, use a specific maximum value
     private static final int MAX = INFINITY - 1;
 
-    final void setWeight( long pointer, double val )
+    final void setWeight( long pointer, double value )
     {
-        val = val / factor;
-        if (val > Integer.MAX_VALUE)
-            da.setShort(pointer, (short) INFINITY);
+        double tmpVal = value / factor;
+        if (tmpVal > Integer.MAX_VALUE)
+            throw new UnsupportedOperationException("Cannot store infinity explicitely, pointer=" + pointer + ", value: " + value);
         else
-            da.setShort(pointer, (short) ((val >= MAX) ? MAX : val));
+            da.setShort(pointer, (short) ((tmpVal >= MAX) ? MAX : tmpVal));
     }
 
     boolean isInfinity( long pointer )
@@ -312,6 +330,9 @@ public class LandmarkStorage implements Storable<LandmarkStorage>
                 landmarkIDs[i] = da.getInt(bytePos);
                 bytePos += 4;
             }
+
+            factor = da.getInt(bytePos) / DOUBLE_MLTPL;
+
             initialized = true;
             return true;
         }
@@ -355,10 +376,33 @@ public class LandmarkStorage implements Storable<LandmarkStorage>
         private boolean from;
         private final LandmarkStorage lms;
 
-        public Explorer( Graph g, LandmarkStorage lms, FlagEncoder encoder, Weighting weighting, TraversalMode tMode )
+        public Explorer( Graph g, LandmarkStorage lms, final FlagEncoder encoder, Weighting weighting, TraversalMode tMode )
         {
             super(g, encoder, weighting, tMode);
+            // TODO subnetworks
+            // all nodes must be available in both directions of the subnetwork => overwrite 'out' and 'in' explorer
+            EdgeFilter filter = new EdgeFilter()
+            {
+                @Override
+                public boolean accept( EdgeIteratorState iter )
+                {
+                    return iter.isForward(encoder) && iter.isBackward(encoder);
+                }
+            };
+
+            outEdgeExplorer = graph.createEdgeExplorer(filter);
+            inEdgeExplorer = graph.createEdgeExplorer(filter);
             this.lms = lms;
+        }
+
+        int getFromCount()
+        {
+            return bestWeightMapFrom.size();
+        }
+
+        int getToCount()
+        {
+            return bestWeightMapTo.size();
         }
 
         public int getLastNode()
@@ -370,11 +414,12 @@ public class LandmarkStorage implements Storable<LandmarkStorage>
         {
             // no path should be calculated
             setUpdateBestPath(false);
-            // set one of the bi directions as already finished
+            // set one of the bi directions as already finished            
             if (from)
                 finishedTo = true;
             else
                 finishedFrom = true;
+
             this.from = from;
             super.runAlgo();
         }
@@ -400,7 +445,19 @@ public class LandmarkStorage implements Storable<LandmarkStorage>
                 @Override
                 public boolean execute( int nodeId, SPTEntry b )
                 {
-                    lms.setWeight(nodeId * rowSize + lmIdx * 4 + offset, b.weight);
+                    try
+                    {
+                        lms.setWeight(nodeId * rowSize + lmIdx * 4 + offset, b.weight);
+                    } catch (UnsupportedOperationException ex)
+                    {
+                        throw new UnsupportedOperationException("Cannot store " + b.weight + " for node=" + nodeId + " => " + graph.getNodeAccess().getLat(nodeId) + "," + graph.getNodeAccess().getLon(nodeId), ex);
+                    }
+                    if (lmIdx == 3 || lmIdx == 7 || lmIdx == 8 || lmIdx == 11 || lmIdx == 14 || lmIdx == 15)
+                    {
+                        nodeId = nodeId;
+                        double weight = lms.getFromWeight(lmIdx, nodeId);
+                    }
+
                     return true;
                 }
             });

@@ -145,8 +145,8 @@ public class Measurement
                 {
                     isLM = true;
                     System.gc();
-                    // try just one constellation
-                    int lmCount = hopper.getLMFactoryDecorator().getLandmarks();
+                    // try just one constellation, often max/2 is best
+                    int lmCount = hopper.getLMFactoryDecorator().getLandmarks() / 2;
                     printTimeOfRouteQuery(hopper, isCH, isLM, count, "routingCHLM" + lmCount, vehicleStr, true, lmCount);
                 }
 
