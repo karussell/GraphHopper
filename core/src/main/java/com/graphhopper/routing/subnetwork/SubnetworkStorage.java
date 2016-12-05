@@ -17,11 +17,15 @@
  */
 package com.graphhopper.routing.subnetwork;
 
+import com.graphhopper.storage.DAType;
 import com.graphhopper.storage.DataAccess;
 import com.graphhopper.storage.Directory;
 import com.graphhopper.storage.Storable;
 
 /**
+ * This class handles storage of subnetwork ids for every node. Useful to pick the correct set of
+ * landmarks or fail fast for routing when two nodes are from different subnetworks.
+ *
  * @author Peter Karich
  */
 public class SubnetworkStorage implements Storable<SubnetworkStorage>
@@ -30,10 +34,37 @@ public class SubnetworkStorage implements Storable<SubnetworkStorage>
 
     public SubnetworkStorage( Directory dir, String postfix )
     {
-        da = dir.find("subnetwork_" + postfix);
+        da = dir.find("subnetwork_" + postfix, dir.getDefaultType().isMMap()? DAType.MMAP : DAType.RAM);
+    }
+
+    /**
+     * Returns the subnetwork ID for the specified nodeId or 0 if non is associated e.g. because the
+     * subnetwork is too small.
+     */
+    public int getSubnetwork( int nodeId )
+    {
+        byte[] bytes = new byte[1];
+        da.getBytes(nodeId, bytes, bytes.length);
+
+        return (int) bytes[0];
+    }
+
+    /**
+     * This method sets the subnetwork if of the specified nodeId. Default is 0 and means subnetwork
+     * was too small to be useful to be stored.
+     */
+    public void setSubnetwork( int nodeId, int subnetwork )
+    {
+        if (subnetwork > 127)
+            throw new IllegalArgumentException("Number of subnetworks is currently limited to 127 but requested " + subnetwork);
+
+        byte[] bytes = new byte[1];
+        bytes[0] = (byte) subnetwork;
+        da.setBytes(nodeId, bytes, bytes.length);
     }
 
     @Override
+
     public boolean loadExisting()
     {
         return da.loadExisting();
@@ -42,7 +73,8 @@ public class SubnetworkStorage implements Storable<SubnetworkStorage>
     @Override
     public SubnetworkStorage create( long byteCount )
     {
-        da.create(byteCount);
+        da.create(2000);
+        da.ensureCapacity(byteCount);
         return this;
     }
 

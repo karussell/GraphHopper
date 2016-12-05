@@ -29,7 +29,7 @@ import static org.junit.Assert.*;
  */
 public class LandmarkStorageTest
 {
-    private Graph graph;
+    private GraphHopperStorage graph;
     private FlagEncoder encoder;
     private TraversalMode tm;
 

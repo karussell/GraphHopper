@@ -21,6 +21,7 @@ import com.graphhopper.coll.GHBitSet;
 import com.graphhopper.coll.GHBitSetImpl;
 import com.graphhopper.routing.util.EdgeFilter;
 import com.graphhopper.storage.GraphHopperStorage;
+import com.graphhopper.util.EdgeExplorer;
 import com.graphhopper.util.EdgeIterator;
 import gnu.trove.list.array.TIntArrayList;
 import gnu.trove.stack.array.TIntArrayStack;
@@ -40,6 +41,7 @@ import java.util.Stack;
 public class TarjansSCCAlgorithm
 {
     private final ArrayList<TIntArrayList> components = new ArrayList<TIntArrayList>();
+    // TODO use just the Graph interface here
     private final GraphHopperStorage graph;
     private final TIntArrayStack nodeStack;
     private final GHBitSet onStack;
@@ -49,16 +51,41 @@ public class TarjansSCCAlgorithm
     private int index = 1;
     private final EdgeFilter edgeFilter;
 
-    public TarjansSCCAlgorithm( GraphHopperStorage graph, GHBitSet ignoreSet,
-                                final EdgeFilter edgeFilter )
+    public TarjansSCCAlgorithm( GraphHopperStorage ghStorage, final EdgeFilter edgeFilter, boolean ignoreSingleEntries )
     {
-        this.graph = graph;
+        this.graph = ghStorage;
         this.nodeStack = new TIntArrayStack();
-        this.onStack = new GHBitSetImpl(graph.getNodes());
-        this.nodeIndex = new int[graph.getNodes()];
-        this.nodeLowLink = new int[graph.getNodes()];
+        this.onStack = new GHBitSetImpl(ghStorage.getNodes());
+        this.nodeIndex = new int[ghStorage.getNodes()];
+        this.nodeLowLink = new int[ghStorage.getNodes()];
         this.edgeFilter = edgeFilter;
-        this.ignoreSet = ignoreSet;
+
+        if (ignoreSingleEntries)
+        {
+            // Very important case to boost performance - see #520. Exclude single entry components as we don't need them! 
+            // But they'll be created a lot for multiple vehicles because many nodes e.g. for foot are not accessible at all for car.
+            // We can ignore these single entry components as they are already set 'not accessible'
+            EdgeExplorer explorer = ghStorage.createEdgeExplorer(edgeFilter);
+            int nodes = ghStorage.getNodes();
+            ignoreSet = new GHBitSetImpl(ghStorage.getNodes());
+            for (int start = 0; start < nodes; start++)
+            {
+                if (!ghStorage.isNodeRemoved(start))
+                {
+                    EdgeIterator iter = explorer.setBaseNode(start);
+                    if (!iter.next())
+                        ignoreSet.add(start);
+                }
+            }
+        } else
+        {
+            ignoreSet = new GHBitSetImpl();
+        }
+    }
+
+    public GHBitSet getIgnoreSet()
+    {
+        return ignoreSet;
     }
 
     /**

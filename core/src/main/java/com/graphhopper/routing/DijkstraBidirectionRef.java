@@ -234,8 +234,8 @@ public class DijkstraBidirectionRef extends AbstractBidirAlgo
                 entryCurrent = entryCurrent.parent;
                 newWeight -= weighting.calcWeight(edgeState, reverse, EdgeIterator.NO_EDGE);
             } else // we detected a u-turn at meeting point, skip if not supported
-                if (!traversalMode.hasUTurnSupport())
-                    return;
+            if (!traversalMode.hasUTurnSupport())
+                return;
         }
 
         if (newWeight < bestPath.getWeight())

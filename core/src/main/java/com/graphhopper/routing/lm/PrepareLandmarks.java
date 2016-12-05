@@ -41,7 +41,7 @@ public class PrepareLandmarks extends AbstractAlgoPreparation
     private int defaultActiveLandmarks;
     private Weighting lmSelectionWeighting;
 
-    public PrepareLandmarks( Directory dir, Graph graph, FlagEncoder encoder, Weighting weighting,
+    public PrepareLandmarks( Directory dir, GraphHopperStorage graph, FlagEncoder encoder, Weighting weighting,
                              TraversalMode traversalMode, int landmarks, int activeLandmarks )
     {
         if (activeLandmarks > landmarks)
@@ -57,6 +57,10 @@ public class PrepareLandmarks extends AbstractAlgoPreparation
     public void setLMSelectionWeighting( Weighting w )
     {
         lms.setLMSelectionWeighting(lmSelectionWeighting);
+    }
+
+    public void setMinimumNodes(int nodes) {
+        lms.setMinimumNodes(nodes);
     }
 
     LandmarkStorage getLandmarkStorage()

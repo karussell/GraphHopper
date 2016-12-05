@@ -287,9 +287,7 @@ public class PrepareRoutingSubnetworksTest
 
         // Requires a single vehicle type, otherwise we throw.
         final EdgeFilter filter = new DefaultEdgeFilter(carFlagEncoder, false, true);
-
-        TarjansSCCAlgorithm tarjan
-                = new TarjansSCCAlgorithm(g, new GHBitSetImpl(), filter);
+        TarjansSCCAlgorithm tarjan = new TarjansSCCAlgorithm(g, filter, false);
 
         List<TIntArrayList> components = tarjan.findComponents();
 

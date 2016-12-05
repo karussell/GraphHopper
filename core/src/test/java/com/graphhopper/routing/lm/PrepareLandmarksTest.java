@@ -29,8 +29,11 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Random;
 
+import static java.util.Arrays.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -40,7 +43,7 @@ import static org.junit.Assert.assertTrue;
 public class PrepareLandmarksTest
 /* extends AbstractRoutingAlgorithmTester */
 {
-    private Graph graph;
+    private GraphHopperStorage graph;
     private FlagEncoder encoder;
     private TraversalMode tm;
 
@@ -89,12 +92,17 @@ public class PrepareLandmarksTest
         int lm = 4, activeLM = 2;
         Weighting weighting = new FastestWeighting(encoder);
         LandmarkStorage store = new LandmarkStorage(graph, dir, lm, encoder, weighting, tm);
+        store.setMinimumNodes(0);
         // default is shortest, but this somehow does not work here and results in 3 corners and the middle (7*15+7=112)
         store.setLMSelectionWeighting(weighting);
         store.createLandmarks();
 
         // landmarks should be the 4 corners of the grid:
-        assertEquals("[224, 1, 210, 14]", Arrays.toString(store.getLandmarks()));
+        int[] intList = store.getLandmarks(1);
+        Arrays.sort(intList);
+        assertEquals("[1, 14, 210, 224]", Arrays.toString(intList));
+        // two landmarks: one for subnetwork 0 (all empty) and one for subnetwork 1
+        assertEquals(2, store.getSubnetworksWithLandmarks());
 
         assertEquals(0, store.getFromWeight(0, 224));
         assertEquals(1984, store.getFromWeight(0, 47));
@@ -119,6 +127,7 @@ public class PrepareLandmarksTest
                 build();
 
         PrepareLandmarks prepare = new PrepareLandmarks(new RAMDirectory(), graph, encoder, weighting, tm, 4, 2);
+        prepare.setMinimumNodes(0);
         prepare.doWork();
 
         AStar expectedAlgo = new AStar(graph, encoder, weighting, tm);
@@ -159,12 +168,13 @@ public class PrepareLandmarksTest
     {
         graph.edge(0, 1, 80, true);
         graph.edge(1, 2, 80, true);
-        String fileStr = "tmp-lm";
+        String fileStr = "./target/tmp-lm";
         Helper.removeDir(new File(fileStr));
 
         Directory dir = new RAMDirectory(fileStr, true).create();
         Weighting weighting = new FastestWeighting(encoder);
         PrepareLandmarks plm = new PrepareLandmarks(dir, graph, encoder, weighting, tm, 2, 2);
+        plm.setMinimumNodes(0);
         plm.doWork();
         double expectedFactor = plm.getLandmarkStorage().getFactor();
 
@@ -172,7 +182,7 @@ public class PrepareLandmarksTest
         assertEquals(Arrays.toString(new int[]
         {
             2, 0
-        }), Arrays.toString(plm.getLandmarkStorage().getLandmarks()));
+        }), Arrays.toString(plm.getLandmarkStorage().getLandmarks(1)));
         assertEquals(2, plm.getLandmarkStorage().getFromWeight(0, 1));
 
         dir = new RAMDirectory(fileStr, true);
@@ -182,7 +192,7 @@ public class PrepareLandmarksTest
         assertEquals(Arrays.toString(new int[]
         {
             2, 0
-        }), Arrays.toString(plm.getLandmarkStorage().getLandmarks()));
+        }), Arrays.toString(plm.getLandmarkStorage().getLandmarks(1)));
         assertEquals(2, plm.getLandmarkStorage().getFromWeight(0, 1));
 
         Helper.removeDir(new File(fileStr));

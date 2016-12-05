@@ -225,26 +225,10 @@ public class PrepareRoutingSubnetworks
     int removeDeadEndUnvisitedNetworks( final PrepEdgeFilter bothFilter )
     {
         StopWatch sw = new StopWatch(bothFilter.getEncoder() + " findComponents").start();
-        final EdgeFilter outFilter = new DefaultEdgeFilter(bothFilter.getEncoder(), false, true);
-
-        // Very important special case for single entry components: we don't need them! See #520
-        // But they'll be created a lot for multiple vehicles as many nodes e.g. for foot are not accessible at all for car.
-        // We can ignore these single entry components as they are already set 'not accessible'
-        EdgeExplorer explorer = ghStorage.createEdgeExplorer(outFilter);
-        int nodes = ghStorage.getNodes();
-        GHBitSet ignoreSet = new GHBitSetImpl(ghStorage.getNodes());
-        for (int start = 0; start < nodes; start++)
-        {
-            if (!ghStorage.isNodeRemoved(start))
-            {
-                EdgeIterator iter = explorer.setBaseNode(start);
-                if (!iter.next())
-                    ignoreSet.add(start);
-            }
-        }
+        final EdgeFilter outFilter = new DefaultEdgeFilter(bothFilter.getEncoder(), false, true);       
 
         // partition graph into strongly connected components using Tarjan's algorithm        
-        TarjansSCCAlgorithm tarjan = new TarjansSCCAlgorithm(ghStorage, ignoreSet, outFilter);
+        TarjansSCCAlgorithm tarjan = new TarjansSCCAlgorithm(ghStorage, outFilter, true);
         List<TIntArrayList> components = tarjan.findComponents();
         logger.info(sw.stop() + ", size:" + components.size());
 
